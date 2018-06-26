@@ -6,14 +6,24 @@ from keras.preprocessing.image import load_img, img_to_array
 from keras.applications.imagenet_utils import preprocess_input
 import numpy as np
 import tensorflow as tf
+import boto3
+from io import BytesIO
 
+
+s3 = boto3.resource('s3')
 
 global feature_extractor
 global graph
+with open('models/vgg16_notop.h5', 'wb') as data:
+    s3.Bucket("cd-models").download_fileobj("vgg16_notop.h5", data)
+
 feature_extractor = load_model('models/vgg16_notop.h5')
 graph = tf.get_default_graph()
 
-classifier = dill.load(open('models/pca_svc.pk', 'rb'))
+with BytesIO() as data:
+    s3.Bucket("cd-models").download_fileobj("pca_svc.pk", data)
+    data.seek(0)    # move back to the beginning after writing
+    classifier = dill.load(data)
 
 
 app = Flask(__name__)
