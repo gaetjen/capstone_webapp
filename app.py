@@ -67,10 +67,4 @@ def prepare_image_direct(img):
 
 
 if __name__ == '__main__':
-    print(Flask)
-    bla = prepare_image('static/uploads/uploadfile0.jpeg')
-    print(bla.shape)
-    print(bla[0, 0, :10, 0])
-    fts = feature_extractor.predict(bla)
-    fts = np.reshape(fts, (1, 7*7*512))
-    print(classifier.predict_proba(fts))
+    app.run(port=33507, host='0.0.0.0')
