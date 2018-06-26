@@ -6,6 +6,7 @@ dill==0.2.8.2
 Flask==1.0.2
 gast==0.2.0
 grpcio==1.12.1
+gunicorn==19.8.1
 h5py==2.8.0
 html5lib==0.9999999
 itsdangerous==0.24
