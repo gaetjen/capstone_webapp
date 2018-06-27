@@ -21,7 +21,7 @@ feature_extractor = load_model('models/vgg16_notop.h5')
 graph = tf.get_default_graph()
 
 with BytesIO() as data:
-    s3.Bucket("cd-models").download_fileobj("pca_svc.pk", data)
+    s3.Bucket("cd-models").download_fileobj("svc_no_pca.pk", data)
     data.seek(0)    # move back to the beginning after writing
     classifier = dill.load(data)
 
