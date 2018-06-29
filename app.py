@@ -8,23 +8,24 @@ import numpy as np
 import tensorflow as tf
 import boto3
 from io import BytesIO
+import random
 
 
-s3 = boto3.resource('s3')
+# s3 = boto3.resource('s3')
 
 global feature_extractor
 global graph
-with open('models/vgg16_notop.h5', 'wb') as data:
-    s3.Bucket("cd-models").download_fileobj("vgg16_notop.h5", data)
+# with open('models/vgg16_notop.h5', 'wb') as data:
+#     s3.Bucket("cd-models").download_fileobj("vgg16_notop.h5", data)
 
 feature_extractor = load_model('models/vgg16_notop.h5')
 graph = tf.get_default_graph()
 
-with BytesIO() as data:
-    s3.Bucket("cd-models").download_fileobj("svc_no_pca.pk", data)
-    data.seek(0)    # move back to the beginning after writing
-    classifier = dill.load(data)
-
+# with BytesIO() as data:
+#     s3.Bucket("cd-models").download_fileobj("svc_no_pca.pk", data)
+#     data.seek(0)    # move back to the beginning after writing
+#     classifier = dill.load(data)
+classifier = dill.load(open('models/pca_svc.pk', 'rb'))
 
 app = Flask(__name__)
 app.config['UPLOADS'] = os.path.join('static/uploads/')
@@ -35,7 +36,7 @@ def index():
     if request.method == 'POST':
         f_list = request.files.getlist('filename[]')
         for idx, f in enumerate(f_list):
-            fn = 'uploadfile{}.jpeg'.format(idx)
+            fn = 'uploadfile{}.jpeg'.format(random.randint(0, 99999999))
             full_path = os.path.join(app.config['UPLOADS'], fn)
             f.save(full_path)
 
