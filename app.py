@@ -1,3 +1,9 @@
+#####################################
+# set FLASK_APP=app.py              #
+# # zum Debuggen: set FLASK_DEBUG=1 #
+# flask run                         #
+#####################################
+
 from flask import Flask, render_template, request
 import os
 import dill
@@ -6,8 +12,8 @@ from keras.preprocessing.image import load_img, img_to_array
 from keras.applications.imagenet_utils import preprocess_input
 import numpy as np
 import tensorflow as tf
-import boto3
-from io import BytesIO
+#import boto3
+#from io import BytesIO
 import random
 
 
@@ -34,15 +40,30 @@ app.config['UPLOADS'] = os.path.join('static/uploads/')
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
+        for f in os.listdir("./static/uploads"):
+            os.remove("./static/uploads/" + f)
+
         f_list = request.files.getlist('filename[]')
-        for idx, f in enumerate(f_list):
-            fn = 'uploadfile{}.jpeg'.format(random.randint(0, 99999999))
-            full_path = os.path.join(app.config['UPLOADS'], fn)
-            f.save(full_path)
+        if len(f_list) == 8:
+            full_path = []
+            result = []
+            for idx, f in enumerate(f_list):
+                fn = 'uploadfile{}.jpeg'.format(random.randint(0, 99999999))
+                full_path1 = os.path.join(app.config['UPLOADS'], fn)
+                full_path.append(full_path1)
+                f.save(full_path1)
+                result.append(get_classification(full_path1))
+            return render_template('show_results8.html', im_url=full_path, classification=result)
 
-        result = get_classification(full_path)
+        else:
+            for idx, f in enumerate(f_list):
+                fn = 'uploadfile{}.jpeg'.format(random.randint(0, 99999999))
+                full_path = os.path.join(app.config['UPLOADS'], fn)
+                f.save(full_path)
 
-        return render_template('show_results.html', im_url=full_path, classification=result)
+            result = get_classification(full_path)
+
+            return render_template('show_results.html', im_url=full_path, classification=result)
     if request.method == 'GET':
         return render_template('upload.html')
 
