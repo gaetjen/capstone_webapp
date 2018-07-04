@@ -9,7 +9,7 @@ import os
 import dill
 from keras.models import load_model
 from keras.preprocessing.image import load_img, img_to_array
-from keras.applications.imagenet_utils import preprocess_input
+from keras.applications import vgg16, xception
 import numpy as np
 import tensorflow as tf
 #import boto3
@@ -17,13 +17,17 @@ import tensorflow as tf
 import random
 
 
+CLASSES_3 = ["Nahaufnahme", "Außenaufnahme", "Innenaufnahme"]
+CLASSES_DMG = ["Unbeschädigt", "Beschädigt"]
+
 # s3 = boto3.resource('s3')
 
-global feature_extractor
-global graph
+# global feature_extractor
+# global graph
 # with open('models/vgg16_notop.h5', 'wb') as data:
 #     s3.Bucket("cd-models").download_fileobj("vgg16_notop.h5", data)
 
+dmg_classifier = load_model('models/classifier-damaged-xception.h5')
 feature_extractor = load_model('models/vgg16_notop.h5')
 graph = tf.get_default_graph()
 
@@ -31,7 +35,7 @@ graph = tf.get_default_graph()
 #     s3.Bucket("cd-models").download_fileobj("svc_no_pca.pk", data)
 #     data.seek(0)    # move back to the beginning after writing
 #     classifier = dill.load(data)
-classifier = dill.load(open('models/pca_svc.pk', 'rb'))
+classifier = dill.load(open('models/pca_svc_vgg16preprocess.pk', 'rb'))
 
 app = Flask(__name__)
 app.config['UPLOADS'] = os.path.join('static/uploads/')
@@ -44,58 +48,95 @@ def index():
             os.remove("./static/uploads/" + f)
 
         f_list = request.files.getlist('filename[]')
-        if len(f_list) == 8:
-            full_path = []
-            result = []
-            for idx, f in enumerate(f_list):
-                fn = 'uploadfile{}.jpeg'.format(random.randint(0, 99999999))
-                full_path1 = os.path.join(app.config['UPLOADS'], fn)
-                full_path.append(full_path1)
-                f.save(full_path1)
-                result.append(get_classification(full_path1))
-            return render_template('show_results8.html', im_url=full_path, classification=result)
 
-        else:
-            for idx, f in enumerate(f_list):
-                fn = 'uploadfile{}.jpeg'.format(random.randint(0, 99999999))
-                full_path = os.path.join(app.config['UPLOADS'], fn)
-                f.save(full_path)
+        saved_files = save_uploads(f_list)
+        if len(f_list) <= 8:
+            three_class_results = get_classification(saved_files)
+            dmg_results = get_dmg_classification(saved_files)
+            results = [x + ' | ' + y for x, y in zip(three_class_results, dmg_results)]
+            if len(f_list) == 8:
+                return render_template('show_results8.html',
+                                       im_url=saved_files,
+                                       classification=results)
+            else:
+                return render_template('show_results.html',
+                                       im_url=saved_files[0],
+                                       classification=results[0])
 
-            result = get_classification(full_path)
-
-            return render_template('show_results.html', im_url=full_path, classification=result)
     if request.method == 'GET':
         return render_template('upload.html')
 
 
-CLASSES_3 = ["Nahaufnahme", "Außenaufnahme", "Innenaufnahme"]
+def save_uploads(f_list):
+    saved_list = []
+    for idx, f in enumerate(f_list):
+        fn = 'uploadfile{}.jpeg'.format(idx)
+        full_path = os.path.join(app.config['UPLOADS'], fn)
+        f.save(full_path)
+        saved_list.append(full_path)
+    return saved_list
 
 
-def get_classification(file_path):
+def get_dmg_classification(file_paths):
+    with graph.as_default():
+        im_list = []
+        for file_path in file_paths:
+            prepared = prepare_image(file_path, target_size=(299, 299), net='xception')
+            im_list.append(prepared)
+        im_list = np.vstack(im_list)
+        predictions = dmg_classifier.predict(im_list)
+        dmg_class = [1 if p[0] > 0.5 else 0 for p in predictions]
+        results = [CLASSES_DMG[dc] + ": %2.0f" % (abs(1 - dc - p[0]) * 100) + '%' for dc, p in zip(dmg_class, predictions)]
+        return results
+
+
+def get_classification(file_paths):
     # TODO: batch processing
     # TODO: set evaluation
     with graph.as_default():
-        # print(file_path)
-        prepared = prepare_image(file_path)
-        # print(prepared.shape)
-        vgg_features = feature_extractor.predict(prepared)
-        vgg_features = np.reshape(vgg_features, (1, 7 * 7 * 512))
-        result = classifier.predict_proba(vgg_features)
-        highest = np.argmax(result)
-        print(result)
-        return CLASSES_3[highest] + ": %2.0f" % (result[0, highest] * 100) + '%'
+        im_list = []
+        for file_path in file_paths:
+            prepared = prepare_image(file_path)
+            im_list.append(prepared)
+        vgg_features = feature_extractor.predict(np.vstack(im_list))
+        vgg_features = np.reshape(vgg_features, (len(im_list), 7 * 7 * 512))
+        predictions = classifier.predict_proba(vgg_features)
+        # print(predictions)
+        highest = np.argmax(predictions, axis=1)
+        # print(highest)
+        # print(result)
+        results = [CLASSES_3[h] + ": %2.0f" % (p[h] * 100) + '%' for p, h in zip(predictions, highest)]
+        # results.append(CLASSES_3[highest] + ": %2.0f" % (result[0, highest] * 100) + '%')
+        return results
 
 
-def prepare_image(img_path):
-    img = load_img(img_path, target_size=(224, 224))
-    return prepare_image_direct(img)
+def prepare_image(img_path, target_size=(224, 224), net='vgg16'):
+    img = load_img(img_path, target_size=target_size)
+    return prepare_image_direct(img, net)
 
 
-def prepare_image_direct(img):
+def prepare_image_direct(img, net):
     x = img_to_array(img)
     x = np.expand_dims(x, axis=0)
-    x = preprocess_input(x)
-    return x / 255
+    if net == 'vgg16':
+        x = vgg16.preprocess_input(x) / 255
+    elif net == 'xception':
+        x = xception.preprocess_input(x)
+    else:
+        raise ValueError("Unknown net architecture, don't know how to preprocess image!")
+    return x
+
+
+# adapted from stackoverflow: https://stackoverflow.com/questions/34066804/disabling-caching-in-flask
+@app.after_request
+def add_header(r):
+    """
+    Add headers to suppress caching.
+    """
+    r.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    r.headers["Pragma"] = "no-cache"
+    r.headers["Expires"] = "0"
+    return r
 
 
 if __name__ == '__main__':
