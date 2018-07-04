@@ -12,6 +12,8 @@ from keras.preprocessing.image import load_img, img_to_array
 from keras.applications import vgg16, xception
 import numpy as np
 import tensorflow as tf
+from collections import Counter
+from sympy.utilities.iterables import multiset_permutations
 #import boto3
 #from io import BytesIO
 import random
@@ -91,8 +93,6 @@ def get_dmg_classification(file_paths):
 
 
 def get_classification(file_paths):
-    # TODO: batch processing
-    # TODO: set evaluation
     with graph.as_default():
         im_list = []
         for file_path in file_paths:
@@ -101,13 +101,43 @@ def get_classification(file_paths):
         vgg_features = feature_extractor.predict(np.vstack(im_list))
         vgg_features = np.reshape(vgg_features, (len(im_list), 7 * 7 * 512))
         predictions = classifier.predict_proba(vgg_features)
-        # print(predictions)
-        highest = np.argmax(predictions, axis=1)
-        # print(highest)
-        # print(result)
+        if len(file_paths) == 8:
+            highest, _ = predict_set(predictions, [2, 4, 2])
+        else:
+            highest = np.argmax(predictions, axis=1)
         results = [CLASSES_3[h] + ": %2.0f" % (p[h] * 100) + '%' for p, h in zip(predictions, highest)]
-        # results.append(CLASSES_3[highest] + ": %2.0f" % (result[0, highest] * 100) + '%')
         return results
+
+
+# TODO: (optional, only for speed) first check if taking max confidence for each sample already gives good distribution
+def predict_set(prob_mtx, n_per_cat, labels=None):
+    """
+    Predict the classes of a set of samples using knowledge about the number of samples belonging to each class
+    :param prob_mtx: matrix specifying all class probabilities for every sample
+    :param n_per_cat: list of number of samples belonging to each class
+    :param labels: optional: give label strings
+    :return: class predictions
+    """
+    if not labels:
+        labels = [i for i in range(len(n_per_cat))]
+    labels = np.array(labels)
+    if prob_mtx.shape[0] != sum(n_per_cat):
+        print("total number of assigneld labels must match number of elements")
+        return
+    if prob_mtx.shape[1] != len(n_per_cat):
+        print("probabilities must match the number of categories!")
+        return
+    label_counts = Counter({l_idx: n for l_idx, n in enumerate(n_per_cat)})
+    best_so_far = -np.inf
+    best_perm = []
+    # go over all possible permutations. multiset_permutations skips duplicates due to repeated occurrences
+    for permutation in multiset_permutations(list(label_counts.elements())):
+        current_sum = sum(prob_mtx[np.arange(len(prob_mtx)), permutation])
+        if current_sum > best_so_far:
+            best_so_far = current_sum
+            best_perm = permutation
+
+    return best_perm, labels[best_perm]
 
 
 def prepare_image(img_path, target_size=(224, 224), net='vgg16'):
