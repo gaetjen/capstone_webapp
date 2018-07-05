@@ -18,6 +18,7 @@ import tensorflow as tf
 from collections import Counter
 from sympy.utilities.iterables import multiset_permutations
 from vis.visualization import visualize_cam
+from PIL import Image
 #import boto3
 #from io import BytesIO
 import random
@@ -57,18 +58,29 @@ def index():
 
         saved_files = save_uploads(f_list)
         if len(f_list) <= 8:
+            im_ws = get_image_widths(saved_files, 230)
             three_class_results = get_classification(saved_files)
             dmg_results, grad_files = get_dmg_classification(saved_files)
             results = [x + '\n' + y for x, y in zip(three_class_results, dmg_results)]
             return render_template('show_results.html',
                                    im_url=saved_files,
                                    classification=results,
-                                   grad_url=grad_files)
+                                   grad_url=grad_files,
+                                   im_ws=im_ws)
         else:
             return "Maximal 8 Bilder!"
 
     if request.method == 'GET':
         return render_template('upload.html')
+
+
+def get_image_widths(f_list, to_height):
+    rtn = []
+    for f in f_list:
+        with Image.open(f) as img:
+            w, h = img.size
+            rtn.append(w / h * 230)
+    return rtn
 
 
 def save_uploads(f_list):
@@ -94,7 +106,7 @@ def get_dmg_classification(file_paths):
             grad_fig = make_gradcam(im, pr, dmg_classifier)
             fn = 'gradfile{}.png'.format(idx)
             full_path = os.path.join(app.config['UPLOADS'], fn)
-            grad_fig.savefig(full_path)
+            grad_fig.savefig(full_path, bbox_inches='tight', pad_inches=0)
             grad_files.append(full_path)
         dmg_class = [1 if p[0] > 0.5 else 0 for p in predictions]
         results = [CLASSES_DMG[dc] + ": %2.0f" % (abs(1 - dc - p[0]) * 100) + '%' for dc, p in zip(dmg_class, predictions)]
@@ -196,6 +208,9 @@ def make_gradcam(image, prediction, model):
     # figure.suptitle('Prediction: {:.2f}'.format(prediction), y=0.8, horizontalalignment='center')
     ax.imshow(image_gradient)
     ax.contour(gradient, 3, colors='k')
+    plt.axis('off')
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
     return figure
 
 

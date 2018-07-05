@@ -15,7 +15,7 @@
     {% for idx in range(im_url|count) %}
     <tr>
         <td><img src={{im_url[idx]}} alt="hat nicht funktioniert" height="230px"></td>
-        <td><img src={{grad_url[idx]}} alt="hat nicht funktioniert" height="230px"></td>
+        <td><img src={{grad_url[idx]}} alt="hat nicht funktioniert" height="230px" width={{im_ws[idx]}}></td>
         <td><big>{{classification[idx]}}</big></td>
     </tr>
     {% endfor %}
