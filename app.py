@@ -4,6 +4,9 @@
 # flask run                         #
 #####################################
 
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot as plt
 from flask import Flask, render_template, request
 import os
 import dill
@@ -14,6 +17,7 @@ import numpy as np
 import tensorflow as tf
 from collections import Counter
 from sympy.utilities.iterables import multiset_permutations
+from vis.visualization import visualize_cam
 #import boto3
 #from io import BytesIO
 import random
@@ -37,7 +41,7 @@ graph = tf.get_default_graph()
 #     s3.Bucket("cd-models").download_fileobj("svc_no_pca.pk", data)
 #     data.seek(0)    # move back to the beginning after writing
 #     classifier = dill.load(data)
-classifier = dill.load(open('models/pca_svc_vgg16preprocess.pk', 'rb'))
+classifier = dill.load(open('models/pca_svc.pk', 'rb'))
 
 app = Flask(__name__)
 app.config['UPLOADS'] = os.path.join('static/uploads/')
@@ -54,11 +58,14 @@ def index():
         saved_files = save_uploads(f_list)
         if len(f_list) <= 8:
             three_class_results = get_classification(saved_files)
-            dmg_results = get_dmg_classification(saved_files)
+            dmg_results, grad_files = get_dmg_classification(saved_files)
             results = [x + '\n' + y for x, y in zip(three_class_results, dmg_results)]
             return render_template('show_results.html',
                                    im_url=saved_files,
-                                   classification=results)
+                                   classification=results,
+                                   grad_url=grad_files)
+        else:
+            return "Maximal 8 Bilder!"
 
     if request.method == 'GET':
         return render_template('upload.html')
@@ -82,9 +89,16 @@ def get_dmg_classification(file_paths):
             im_list.append(prepared)
         im_list = np.vstack(im_list)
         predictions = dmg_classifier.predict(im_list)
+        grad_files = []
+        for idx, im, pr in zip(range(len(im_list)), im_list, predictions):
+            grad_fig = make_gradcam(im, pr, dmg_classifier)
+            fn = 'gradfile{}.png'.format(idx)
+            full_path = os.path.join(app.config['UPLOADS'], fn)
+            grad_fig.savefig(full_path)
+            grad_files.append(full_path)
         dmg_class = [1 if p[0] > 0.5 else 0 for p in predictions]
         results = [CLASSES_DMG[dc] + ": %2.0f" % (abs(1 - dc - p[0]) * 100) + '%' for dc, p in zip(dmg_class, predictions)]
-        return results
+        return results, grad_files
 
 
 def get_classification(file_paths):
@@ -125,7 +139,7 @@ def predict_set(prob_mtx, n_per_cat, labels=None):
     label_counts = Counter({l_idx: n for l_idx, n in enumerate(n_per_cat)})
     best_so_far = -np.inf
     best_perm = []
-    # go over all possible permutations. multiset_permutations skips duplicates due to repeated occurrences
+    # go over all possible permutations. multiset_permutations skips the duplicates due to repeated occurrences
     for permutation in multiset_permutations(list(label_counts.elements())):
         current_sum = sum(prob_mtx[np.arange(len(prob_mtx)), permutation])
         if current_sum > best_so_far:
@@ -144,12 +158,45 @@ def prepare_image_direct(img, net):
     x = img_to_array(img)
     x = np.expand_dims(x, axis=0)
     if net == 'vgg16':
-        x = vgg16.preprocess_input(x) / 255
+        # x = vgg16.preprocess_input(x)
+        # apparently just rescaling works much better than using the vgg16 preprocessing
+        x /= 255
     elif net == 'xception':
         x = xception.preprocess_input(x)
     else:
         raise ValueError("Unknown net architecture, don't know how to preprocess image!")
     return x
+
+
+def normalize_tf_image(image):  # from [-1. ... 1.] to [0. ... 1.]
+    return (image + 1.) / 2.
+
+
+def make_gradcam(image, prediction, model):
+    prediction = prediction.squeeze()
+    if prediction >= 0.5:
+        # highlight the regions contributing towards '1-damaged' classification
+        grad_modifier = None
+    else:
+        # highlight the regions contributing towards '0-non-damaged' classification
+        grad_modifier = 'negate'
+
+    # squeeze out the 'batch' dimension for keras-vis
+    image = image.squeeze()
+
+    gradient = visualize_cam(model, layer_idx=-1, filter_indices=0,
+                             seed_input=image, backprop_modifier=None, grad_modifier=grad_modifier)
+
+    image = normalize_tf_image(image)
+    gradient_tmp = np.expand_dims(gradient, axis=2)
+    # print(image.shape, gradient_tmp.shape)
+    image_gradient = np.concatenate((image, gradient_tmp), axis=2)
+    # print(image_gradient.shape)
+    figure, ax = plt.subplots(1, 1)
+    # figure.suptitle('Prediction: {:.2f}'.format(prediction), y=0.8, horizontalalignment='center')
+    ax.imshow(image_gradient)
+    ax.contour(gradient, 3, colors='k')
+    return figure
 
 
 # adapted from stackoverflow: https://stackoverflow.com/questions/34066804/disabling-caching-in-flask

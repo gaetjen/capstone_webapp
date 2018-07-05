@@ -9,11 +9,13 @@
 <table>
     <tr>
         <th></th>
+        <th>Visualisierung</th>
         <th>Ergebnisse</th>
     </tr>
     {% for idx in range(im_url|count) %}
     <tr>
         <td><img src={{im_url[idx]}} alt="hat nicht funktioniert" height="230px"></td>
+        <td><img src={{grad_url[idx]}} alt="hat nicht funktioniert" height="230px"></td>
         <td><big>{{classification[idx]}}</big></td>
     </tr>
     {% endfor %}
