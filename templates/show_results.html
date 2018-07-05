@@ -2,10 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Image</title>
+    <title>Klassifikationsergebnisse</title>
+    <link rel=stylesheet type=text/css href='{{ url_for('static',filename='style.css')}}'>
 </head>
 <body>
-<figure><img src={{im_url}} alt="hat nicht funktioniert"></figure>
-<big> Ergebnis: {{classification}} </big>
+<table>
+    <tr>
+        <th></th>
+        <th>Ergebnisse</th>
+    </tr>
+    {% for idx in range(im_url|count) %}
+    <tr>
+        <td><img src={{im_url[idx]}} alt="hat nicht funktioniert" height="230px"></td>
+        <td><big>{{classification[idx]}}</big></td>
+    </tr>
+    {% endfor %}
+</table>
 </body>
 </html>

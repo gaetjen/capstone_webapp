@@ -55,15 +55,10 @@ def index():
         if len(f_list) <= 8:
             three_class_results = get_classification(saved_files)
             dmg_results = get_dmg_classification(saved_files)
-            results = [x + ' | ' + y for x, y in zip(three_class_results, dmg_results)]
-            if len(f_list) == 8:
-                return render_template('show_results8.html',
-                                       im_url=saved_files,
-                                       classification=results)
-            else:
-                return render_template('show_results.html',
-                                       im_url=saved_files[0],
-                                       classification=results[0])
+            results = [x + '\n' + y for x, y in zip(three_class_results, dmg_results)]
+            return render_template('show_results.html',
+                                   im_url=saved_files,
+                                   classification=results)
 
     if request.method == 'GET':
         return render_template('upload.html')
