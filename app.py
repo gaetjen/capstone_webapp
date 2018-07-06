@@ -19,29 +19,14 @@ from collections import Counter
 from sympy.utilities.iterables import multiset_permutations
 from vis.visualization import visualize_cam
 from PIL import Image
-#import boto3
-#from io import BytesIO
-import random
 
 
 CLASSES_3 = ["Nahaufnahme", "Außenaufnahme", "Innenaufnahme"]
 CLASSES_DMG = ["Unbeschädigt", "Beschädigt"]
 
-# s3 = boto3.resource('s3')
-
-# global feature_extractor
-# global graph
-# with open('models/vgg16_notop.h5', 'wb') as data:
-#     s3.Bucket("cd-models").download_fileobj("vgg16_notop.h5", data)
-
 dmg_classifier = load_model('models/classifier-damaged-xception.h5')
 feature_extractor = load_model('models/vgg16_notop.h5')
 graph = tf.get_default_graph()
-
-# with BytesIO() as data:
-#     s3.Bucket("cd-models").download_fileobj("svc_no_pca.pk", data)
-#     data.seek(0)    # move back to the beginning after writing
-#     classifier = dill.load(data)
 classifier = dill.load(open('models/pca_svc_tuned.pk', 'rb'))
 
 app = Flask(__name__)
