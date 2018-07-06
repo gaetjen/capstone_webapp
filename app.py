@@ -42,7 +42,7 @@ graph = tf.get_default_graph()
 #     s3.Bucket("cd-models").download_fileobj("svc_no_pca.pk", data)
 #     data.seek(0)    # move back to the beginning after writing
 #     classifier = dill.load(data)
-classifier = dill.load(open('models/pca_svc.pk', 'rb'))
+classifier = dill.load(open('models/pca_svc_tuned.pk', 'rb'))
 
 app = Flask(__name__)
 app.config['UPLOADS'] = os.path.join('static/uploads/')
@@ -79,7 +79,7 @@ def get_image_widths(f_list, to_height):
     for f in f_list:
         with Image.open(f) as img:
             w, h = img.size
-            rtn.append(w / h * 230)
+            rtn.append(w / h * to_height)
     return rtn
 
 
@@ -170,9 +170,7 @@ def prepare_image_direct(img, net):
     x = img_to_array(img)
     x = np.expand_dims(x, axis=0)
     if net == 'vgg16':
-        # x = vgg16.preprocess_input(x)
-        # apparently just rescaling works much better than using the vgg16 preprocessing
-        x /= 255
+        x = vgg16.preprocess_input(x)
     elif net == 'xception':
         x = xception.preprocess_input(x)
     else:
