@@ -4,6 +4,8 @@ static/uploads/
 # venv
 app_env/
 
+models/*
+
 #pycharm
 .idea/
 
