@@ -1,6 +1,9 @@
 #images
 static/uploads/
 
+# venv
+app_env/
+
 #pycharm
 .idea/
 
