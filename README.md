@@ -16,6 +16,7 @@ python3 -m venv app_env
 . app_env/bin/activate
 pip install -r requirements.txt
 export FLASK_APP=app.py
+python download_models.py
 ```
 #### On Windows:
 ```
@@ -25,8 +26,8 @@ py -3 -m venv app_env
 venv\Scripts\activate
 pip install -r requirements.txt
 set FLASK_APP=app.py
+python download_models.py
 ```
-TODO: downloading models
 #### Optional
 If you have a system set up to use tensorflow on the gpu the following may lead to speedups in classification:
 ```

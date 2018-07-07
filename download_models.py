@@ -44,4 +44,5 @@ if __name__ == "__main__":
     destination_folder = 'models/'
     destinations = [destination_folder + fn for fn in file_names]
     for f_id, dst in zip(file_ids, destinations):
+        print("Downloading to {}".format(dst))
         download_file_from_google_drive(f_id, dst)
