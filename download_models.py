@@ -35,7 +35,7 @@ def save_response_content(response, destination):
 
 
 if __name__ == "__main__":
-    print("Please be patient, this may take a few moments…")
+    print("Please be patient, this may take a few moments...")
     file_ids = ['1zuE9g8jYiSBus_nLG0u7Xfi_rscMGhu8',
                 '1HLAjghVXZsreVrFg02rT4Dn9w35aOMqJ',
                 '1K0CyCN7YQucVxfV5eL00XBqu3-8G5p2Z']
