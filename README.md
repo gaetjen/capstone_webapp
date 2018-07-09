@@ -4,7 +4,7 @@ This webapp provides a user-friendly interface for the classifiers and visualiza
 
 ## Instructions
 ### Requirements
-* Python 3
+* Python 3 (available from the command line)
 * pip
 * Git (available from the command line)
 ### Installation
@@ -22,9 +22,9 @@ python download_models.py
 ```
 git clone https://github.com/gaetjen/capstone_webapp.git
 cd capstone_webapp
-py -3 -m venv app_env
-venv\Scripts\activate
-pip install -r requirements.txt
+python -m venv app_env
+app_env\Scripts\activate
+python -m pip install -r requirements.txt
 set FLASK_APP=app.py
 python download_models.py
 ```
