@@ -12,7 +12,7 @@ import os
 import dill
 from keras.models import load_model
 from keras.preprocessing.image import load_img, img_to_array
-from keras.applications import vgg16, xception
+from keras.applications import vgg16, inception_v3
 import numpy as np
 import tensorflow as tf
 from collections import Counter
@@ -24,7 +24,7 @@ from PIL import Image
 CLASSES_3 = ["Nahaufnahme", "Außenaufnahme", "Innenaufnahme"]
 CLASSES_DMG = ["Unbeschädigt", "Beschädigt"]
 
-dmg_classifier = load_model('models/classifier-damaged-xception.h5')
+dmg_classifier = load_model('models/model-dense.h5')
 feature_extractor = load_model('models/vgg16_notop.h5')
 graph = tf.get_default_graph()
 classifier = dill.load(open('models/pca_svc_tuned.pk', 'rb'))
@@ -157,7 +157,7 @@ def prepare_image_direct(img, net):
     if net == 'vgg16':
         x = vgg16.preprocess_input(x)
     elif net == 'xception':
-        x = xception.preprocess_input(x)
+        x = inception_v3.preprocess_input(x)
     else:
         raise ValueError("Unknown net architecture, don't know how to preprocess image!")
     return x
